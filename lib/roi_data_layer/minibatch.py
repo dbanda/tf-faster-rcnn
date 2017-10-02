@@ -65,7 +65,7 @@ def _get_image_blob(roidb, scale_inds):
     head, dirname = os.path.split(head)
     symfile = os.path.join('/storage/pramodrt/phasesym/',dirname,fname)
     sim = cv2.imread(symfile)
-    sim = sim[:,:,1];
+    #sim = sim[:,:,1];
     
     if roidb[i]['flipped']:
       im = im[:, ::-1, :]
@@ -73,7 +73,7 @@ def _get_image_blob(roidb, scale_inds):
     sx, sy, sz = im.shape
     temp = np.zeros([sx, sy, 4])
     temp[:,:,0:3] = im;
-    temp[:,:,3] = sim;
+    #temp[:,:,3] = sim;
     im = temp;
     target_size = cfg.TRAIN.SCALES[scale_inds[i]]
     im, im_scale = prep_im_for_blob(im, cfg.PIXEL_MEANS, target_size,

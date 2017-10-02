@@ -37,8 +37,9 @@ CLASSES = ('__background__',
            'motorbike', 'person', 'pottedplant',
            'sheep', 'sofa', 'train', 'tvmonitor')
 
-NETS = {'vgg16': ('vgg16_faster_rcnn_iter_70000.ckpt',),'res101': ('res101_faster_rcnn_iter_110000.ckpt',)}
-DATASETS= {'pascal_voc': ('voc_2007_trainval',),'pascal_voc_0712': ('voc_2007_trainval+voc_2012_trainval',)}
+NETS = {'vgg16': ('vgg16_faster_rcnn_iter_10000.ckpt',),'res101': ('res101_faster_rcnn_iter_110000.ckpt',)}
+DATASETS= {'pascal_voc': ('voc_2007_trainval',),'pascal_voc_0712': ('voc_2007_trainval+voc_2012_trainval',),
+            'coco': ('coco_2014_train+coco_2014_valminusminival',)}
 
 def vis_detections(im, class_name, dets, thresh=0.5):
     """Draw detected bounding boxes."""
@@ -76,8 +77,22 @@ def demo(sess, net, image_name):
     """Detect object classes in an image using pre-computed object proposals."""
 
     # Load the demo image
-    im_file = os.path.join(cfg.DATA_DIR, 'demo', image_name)
+    # im_file = os.path.join(cfg.DATA_DIR, 'demo', image_name)
+    #COCO_train2014_000000000009.jpg
+    im_file = "data/coco/images/train2014/COCO_train2014_{:012d}.jpg".format(image_name)
+    CLASSES = ('__background__', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 
+        'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 
+        'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 
+        'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 
+        'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 
+        'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 
+        'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 
+        'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 
+        'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 
+        'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush')
+
     im = cv2.imread(im_file)
+    assert im.any(), im_file
 
     # Detect all object classes and regress object bounds
     timer = Timer()
@@ -138,12 +153,14 @@ if __name__ == '__main__':
         net = resnetv1(num_layers=101)
     else:
         raise NotImplementedError
-    net.create_architecture("TEST", 21,
-                          tag='default', anchor_scales=[8, 16, 32])
-    # tf.global_variables_initializer()
+    # net.create_architecture("TEST", 21,
+    #                       tag='default', anchor_scales=[8, 16, 32])
+    net.create_architecture("TEST", 21, tag='default',
+                            anchor_scales=cfg.ANCHOR_SCALES,
+                            anchor_ratios=cfg.ANCHOR_RATIOS)
     saver = tf.train.Saver()
 
-    saver.save(sess,tfmodel)
+    print("attempting to restore model from {}".format(tfmodel))
     saver.restore(sess, tfmodel)
 
     print('Loaded network {:s}'.format(tfmodel))

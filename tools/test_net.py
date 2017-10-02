@@ -20,6 +20,9 @@ from nets.vgg16 import vgg16
 from nets.resnet_v1 import resnetv1
 from nets.mobilenet_v1 import mobilenetv1
 
+import demo
+import matplotlib.pyplot as plt
+
 def parse_args():
   """
   Parse input arguments
@@ -80,8 +83,10 @@ if __name__ == '__main__':
   tag = tag if tag else 'default'
   filename = tag + '/' + filename
 
+  args.imdb_name =  "coco_2014_train"
   imdb = get_imdb(args.imdb_name)
   imdb.competition_mode(args.comp_mode)
+
 
   tfconfig = tf.ConfigProto(allow_soft_placement=True)
   tfconfig.gpu_options.allow_growth=True
@@ -117,6 +122,9 @@ if __name__ == '__main__':
     sess.run(tf.global_variables_initializer())
     print('Loaded.')
 
-  test_net(sess, net, imdb, filename, max_per_image=args.max_per_image)
-
+  # test_net(sess, net, imdb, filename, max_per_image=args.max_per_image)
+  ids = [262145, 131074, 131075, 393221, 393223, 393224, 524297, 393227]
+  for imgs in ids:
+    demo.demo(sess, net, imgs)
+  plt.show()
   sess.close()

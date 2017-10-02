@@ -35,7 +35,7 @@ def _get_image_blob(im):
       in the image pyramid
   """
   im_orig = im.astype(np.float32, copy=True)
-  im_orig -= cfg.PIXEL_MEANS
+  im_orig -= cfg.PIXEL_MEANS[:,:,:3]
 
   im_shape = im_orig.shape
   im_size_min = np.min(im_shape[0:2])
@@ -53,7 +53,9 @@ def _get_image_blob(im):
     temp = st.resize(im, (int(im_shape[0]*im_scale),int(im_shape[1]*im_scale)), preserve_range=True)
     im = temp
     im_scale_factors.append(im_scale)
-    processed_ims.append(im)
+    im_with_sym = np.zeros((im.shape[0],im.shape[1],4))
+    im_with_sym[:,:,:3] =im
+    processed_ims.append(im_with_sym)
 
   # Create a blob to hold the input images
   blob = im_list_to_blob(processed_ims)

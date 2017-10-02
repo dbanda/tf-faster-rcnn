@@ -72,7 +72,8 @@ class coco(imdb):
     """
     Load image ids.
     """
-    image_ids = self._COCO.getImgIds()
+    ss = 100
+    image_ids = self._COCO.getImgIds()[:100]
     return image_ids
 
   def _get_widths(self):
@@ -92,11 +93,10 @@ class coco(imdb):
     """
     # Example image path for index=119993:
     #   images/train2014/COCO_train2014_000000119993.jpg
-    # file_name = ('COCO_' + self._data_name + '_' +
-    #              str(index).zfill(12) + '.jpg')
-    file_name = (str(index).zfill(12) + '.jpg')
+    file_name = ('COCO_' + self._data_name + '_' +
+                 str(index).zfill(12) + '.jpg')
     image_path = osp.join(self._data_path, 'images',
-                         file_name)
+                          self._data_name, file_name)
     assert osp.exists(image_path), \
       'Path does not exist: {}'.format(image_path)
     return image_path
