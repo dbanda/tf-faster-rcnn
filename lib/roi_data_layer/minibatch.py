@@ -89,7 +89,6 @@ def _get_image_blob(roidb, scale_inds):
     sx, sy, sz = im.shape
     temp = np.zeros([sx, sy, 4])
     temp[:,:,0:3] = im;
-    Image.fromarray(np.uint8(im)).show()
     temp[:,:,3] = sim;
     im = temp;
     target_size = cfg.TRAIN.SCALES[scale_inds[i]]
