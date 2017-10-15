@@ -3,6 +3,7 @@
 set -x
 set -e
 
+export MPLBACKEND="Agg"
 export PYTHONUNBUFFERED="True"
 
 GPU_ID=$1
