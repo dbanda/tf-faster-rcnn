@@ -18,7 +18,6 @@ from utils.blob import prep_im_for_blob, im_list_to_blob
 from utils.visualization import draw_bbox_only
 import PIL.Image as Image
 import os.path
-import time
 
 def get_minibatch(roidb, num_classes):
   """Given a roidb, construct a minibatch sampled from it."""
@@ -55,16 +54,15 @@ def get_minibatch(roidb, num_classes):
 
   bboxs = draw_bbox_only(im_blob,blobs['gt_boxes'],blobs['im_info'], cfg.PIXEL_MEANS[0,0,:3])
 
+  #replace sym chan with bboxs
   im_blob[0][:,:,3] = bboxs
 
-  imgbefore = Image.fromarray(np.uint8( (im_blob[0].copy()+cfg.PIXEL_MEANS)[:,:,0:3] ))
+  #imgbefore = Image.fromarray(np.uint8( (im_blob[0].copy()+cfg.PIXEL_MEANS)[:,:,0:3] ))
   
   # imgbefore.show()
   # Image.fromarray(bboxs).show()
   
-  #replace sym chan with bboxs
 
-  time.sleep(10)
   return blobs
 
 def _get_image_blob(roidb, scale_inds):
