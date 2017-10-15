@@ -35,6 +35,7 @@ def get_minibatch(roidb, num_classes):
 
   assert len(im_scales) == 1, "Single batch only"
   assert len(roidb) == 1, "Single batch only"
+  assert len(im_blob) == 1, "Single batch only"
   
   # gt boxes: (x1, y1, x2, y2, cls)
   if cfg.TRAIN.USE_ALL_GT:
@@ -51,11 +52,18 @@ def get_minibatch(roidb, num_classes):
     [im_blob.shape[1], im_blob.shape[2], im_scales[0]],
     dtype=np.float32)
 
-  imgbefore = Image.fromarray(np.uint8( (blobs['data'][0].copy()+cfg.PIXEL_MEANS)[:,:,0:3] ))
-  imgbefore.show()
 
-  Image.fromarray(draw_bbox_only(blobs['data'],blobs['gt_boxes'],blobs['im_info'], cfg.PIXEL_MEANS[0,0,:3])).show()
-  # assert False
+  bboxs = draw_bbox_only(im_blob,blobs['gt_boxes'],blobs['im_info'], cfg.PIXEL_MEANS[0,0,:3])
+
+  im_blob[0][:,:,3] = bboxs
+
+  imgbefore = Image.fromarray(np.uint8( (im_blob[0].copy()+cfg.PIXEL_MEANS)[:,:,0:3] ))
+  
+  # imgbefore.show()
+  # Image.fromarray(bboxs).show()
+  
+  #replace sym chan with bboxs
+
   time.sleep(10)
   return blobs
 

@@ -118,6 +118,7 @@ def draw_bbox_only(image, gt_boxes, im_info,means):
                                 FONT,
                                 color=this_class)
 
+  assert this_class < 255
   # sx,sy,sz = image[0].shape
   # bgr_img = np.float32(np.zeros((1,sx,sy,3)))
   # bgr_img[0,:] = np.array(disp_image)
