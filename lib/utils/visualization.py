@@ -98,11 +98,11 @@ def draw_bbox_only(image, gt_boxes, im_info,means):
 
   # resized = tf.image.resize_bilinear(image, tf.to_int32(self._im_info[:2] / self._im_info[2]))
 
-  disp_image = Image.fromarray(np.uint8(image[0][:,:,1:4].copy() + means))
-  disp_image.show()
+  disp_image = Image.fromarray(np.uint8(image[0][:,:,0:3].copy() + means))
+  # disp_image.show()
 
   sx,sy,sz = image[0].shape
-  disp_image = Image.fromarray(np.uint8(np.zeros((sx,sy))))
+  disp_image = Image.fromarray(np.uint8(255*np.ones((sx,sy))))
 
   # disp_image.resize(size, resample=0)
   
@@ -121,7 +121,7 @@ def draw_bbox_only(image, gt_boxes, im_info,means):
   # sx,sy,sz = image[0].shape
   # bgr_img = np.float32(np.zeros((1,sx,sy,3)))
   # bgr_img[0,:] = np.array(disp_image)
-  disp_image.show()
+  # disp_image.show()
   return np.uint8(disp_image)
 
 def _draw_single_box_only(image, xmin, ymin, xmax, ymax, display_str, font, color='black', thickness=4):

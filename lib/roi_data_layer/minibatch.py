@@ -51,6 +51,9 @@ def get_minibatch(roidb, num_classes):
     [im_blob.shape[1], im_blob.shape[2], im_scales[0]],
     dtype=np.float32)
 
+  imgbefore = Image.fromarray(np.uint8( (blobs['data'][0].copy()+cfg.PIXEL_MEANS)[:,:,0:3] ))
+  imgbefore.show()
+
   Image.fromarray(draw_bbox_only(blobs['data'],blobs['gt_boxes'],blobs['im_info'], cfg.PIXEL_MEANS[0,0,:3])).show()
   # assert False
   time.sleep(10)
@@ -69,19 +72,17 @@ def _get_image_blob(roidb, scale_inds):
     
     head, fname = os.path.split(roidb[i]['image'])
     head, dirname = os.path.split(head)
-    symfile = os.path.join('/storage/pramodrt/phasesym/',dirname,fname)
-    sim = cv2.imread(symfile)
-    #sim = sim[:,:,1];
-
-    # draw_bbox_only(image, gt_boxes, im_info)
-    
+    #symfile = os.path.join('/storage/pramodrt/phasesym/',dirname,fname)
+    symfile = os.path.join(head,dirname,'../../phasesym/phasesym/',dirname,fname)
+    sim = cv2.imread(symfile,0)
     if roidb[i]['flipped']:
       im = im[:, ::-1, :]
     
     sx, sy, sz = im.shape
     temp = np.zeros([sx, sy, 4])
     temp[:,:,0:3] = im;
-    #temp[:,:,3] = sim;
+    Image.fromarray(np.uint8(im)).show()
+    temp[:,:,3] = sim;
     im = temp;
     target_size = cfg.TRAIN.SCALES[scale_inds[i]]
     im, im_scale = prep_im_for_blob(im, cfg.PIXEL_MEANS, target_size,
