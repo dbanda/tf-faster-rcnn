@@ -15,7 +15,10 @@ import numpy.random as npr
 import cv2
 from model.config import cfg
 from utils.blob import prep_im_for_blob, im_list_to_blob
+from utils.visualization import draw_bbox_only
+import PIL.Image as Image
 import os.path
+import time
 
 def get_minibatch(roidb, num_classes):
   """Given a roidb, construct a minibatch sampled from it."""
@@ -48,6 +51,9 @@ def get_minibatch(roidb, num_classes):
     [im_blob.shape[1], im_blob.shape[2], im_scales[0]],
     dtype=np.float32)
 
+  Image.fromarray(draw_bbox_only(blobs['data'],blobs['gt_boxes'],blobs['im_info'], cfg.PIXEL_MEANS[0,0,:3])).show()
+  # assert False
+  time.sleep(10)
   return blobs
 
 def _get_image_blob(roidb, scale_inds):
@@ -66,6 +72,8 @@ def _get_image_blob(roidb, scale_inds):
     symfile = os.path.join('/storage/pramodrt/phasesym/',dirname,fname)
     sim = cv2.imread(symfile)
     #sim = sim[:,:,1];
+
+    # draw_bbox_only(image, gt_boxes, im_info)
     
     if roidb[i]['flipped']:
       im = im[:, ::-1, :]

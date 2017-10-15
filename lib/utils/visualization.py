@@ -62,6 +62,7 @@ def _draw_single_box(image, xmin, ymin, xmax, ymax, display_str, font, color='bl
   draw.text(
       (left + margin, text_bottom - text_height - margin),
       display_str,
+
       fill='black',
       font=font)
 
@@ -71,7 +72,7 @@ def draw_bounding_boxes(image, gt_boxes, im_info):
   num_boxes = gt_boxes.shape[0]
   gt_boxes_new = gt_boxes.copy()
   gt_boxes_new[:,:4] = np.round(gt_boxes_new[:,:4].copy() / im_info[2])
-  disp_image = Image.fromarray(np.uint8(image[0]))
+  disp_image = Image.fromarray(np.uint8(image[0][:,:,1:4].copy()))
 
   for i in range(num_boxes):
     this_class = int(gt_boxes_new[i, 4])
@@ -84,5 +85,50 @@ def draw_bounding_boxes(image, gt_boxes, im_info):
                                 FONT,
                                 color=STANDARD_COLORS[this_class % NUM_COLORS])
 
-  image[0, :] = np.array(disp_image)
+  sx,sy,sz = image[0].shape
+  bgr_img = np.float32(np.zeros((1,sx,sy,3)))
+  bgr_img[0,:] = np.array(disp_image)
+  return bgr_img
+
+def draw_bbox_only(image, gt_boxes, im_info,means):
+  print(image.shape)
+  num_boxes = gt_boxes.shape[0]
+  gt_boxes_new = gt_boxes.copy()
+  gt_boxes_new[:,:4] = np.round(gt_boxes_new[:,:4].copy() / im_info[2])
+
+  # resized = tf.image.resize_bilinear(image, tf.to_int32(self._im_info[:2] / self._im_info[2]))
+
+  disp_image = Image.fromarray(np.uint8(image[0][:,:,1:4].copy() + means))
+  disp_image.show()
+
+  sx,sy,sz = image[0].shape
+  disp_image = Image.fromarray(np.uint8(np.zeros((sx,sy))))
+
+  # disp_image.resize(size, resample=0)
+  
+
+  for i in range(num_boxes):
+    this_class = int(gt_boxes_new[i, 4])
+    disp_image = _draw_single_box_only(disp_image, 
+                                gt_boxes_new[i, 0]*im_info[2],
+                                gt_boxes_new[i, 1]*im_info[2],
+                                gt_boxes_new[i, 2]*im_info[2],
+                                gt_boxes_new[i, 3]*im_info[2],
+                                'N%02d-C%02d' % (i, this_class),
+                                FONT,
+                                color=this_class)
+
+  # sx,sy,sz = image[0].shape
+  # bgr_img = np.float32(np.zeros((1,sx,sy,3)))
+  # bgr_img[0,:] = np.array(disp_image)
+  disp_image.show()
+  return np.uint8(disp_image)
+
+def _draw_single_box_only(image, xmin, ymin, xmax, ymax, display_str, font, color='black', thickness=4):
+  draw = ImageDraw.Draw(image)
+  (left, right, top, bottom) = (xmin, xmax, ymin, ymax)
+  draw.line([(left, top), (left, bottom), (right, bottom),
+             (right, top), (left, top)], width=thickness, fill=color)
+
+
   return image

@@ -72,9 +72,26 @@ class coco(imdb):
     """
     Load image ids.
     """
+
+    cats = self._COCO.loadCats(self._COCO.getCatIds())
+    nms=[cat['name'] for cat in cats]
+    print('COCO categories: \n{}\n'.format(' '.join(nms)))
+
+    nms = set([cat['supercategory'] for cat in cats])
+    print('COCO supercategories: \n{}'.format(' '.join(nms)))
+
     ss = 100
-    image_ids = self._COCO.getImgIds()[:100]
-    return image_ids
+
+    catIds = self._COCO.getCatIds(catNms=['person','bicycle' ,'car' ,'motorcycle' ,'airplane']);
+    assert len(catIds) > 0
+    print(catIds, len(self._COCO.getImgIds()))
+    imgIds= []
+    for c in catIds:
+      imgIds.extend(self._COCO.getImgIds(imgIds=self._COCO.getImgIds(), catIds=[c] ));
+    assert len(imgIds) > 0
+    return imgIds[:10]
+    # image_ids = self._COCO.getImgIds()[:100]
+    # return image_ids
 
   def _get_widths(self):
     anns = self._COCO.loadImgs(self._image_index)
