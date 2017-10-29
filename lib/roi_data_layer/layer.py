@@ -21,15 +21,20 @@ import time
 class RoIDataLayer(object):
   """Fast R-CNN data layer used for training."""
 
-  def __init__(self, roidb, num_classes, random=False):
+  def __init__(self, roidb, num_classes, random=False,shuffle=True):
     """Set the roidb to be used by this layer during training."""
     self._roidb = roidb
     self._num_classes = num_classes
     # Also set a random flag
     self._random = random
+    self.shuffle = shuffle
     self._shuffle_roidb_inds()
 
   def _shuffle_roidb_inds(self):
+    if not self.shuffle:
+      self._perm = np.arange(len(self._roidb))
+      self._cur = 0
+      return
     """Randomly permute the training roidb."""
     # If the random flag is set, 
     # then the database is shuffled according to system time
@@ -64,10 +69,12 @@ class RoIDataLayer(object):
   def _get_next_minibatch_inds(self):
     """Return the roidb indices for the next minibatch."""
     
-    if self._cur + cfg.TRAIN.IMS_PER_BATCH >= len(self._roidb):
+    if self._cur + cfg.TRAIN.IMS_PER_BATCH > len(self._roidb):
       self._shuffle_roidb_inds()
 
+
     db_inds = self._perm[self._cur:self._cur + cfg.TRAIN.IMS_PER_BATCH]
+    print("minibatch inds", db_inds, "cur", self._cur, self._perm)
     self._cur += cfg.TRAIN.IMS_PER_BATCH
 
     return db_inds

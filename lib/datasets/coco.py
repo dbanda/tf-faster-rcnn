@@ -80,18 +80,17 @@ class coco(imdb):
     nms = set([cat['supercategory'] for cat in cats])
     print('COCO supercategories: \n{}'.format(' '.join(nms)))
 
-    ss = 100
-
     catIds = self._COCO.getCatIds(catNms=['person','bicycle' ,'car' ,'motorcycle' ,'airplane']);
     assert len(catIds) > 0
     print(catIds, len(self._COCO.getImgIds()))
     imgIds= []
-    for c in catIds:
-      imgIds.extend(self._COCO.getImgIds(imgIds=self._COCO.getImgIds(), catIds=[c] ));
+    #for c in catIds:
+    #  imgIds.extend(self._COCO.getImgIds(imgIds=self._COCO.getImgIds(), catIds=[c] ));
+    imgIds=self._COCO.getImgIds()
     assert len(imgIds) > 0
-    return imgIds[:10]
-    # image_ids = self._COCO.getImgIds()[:100]
-    # return image_ids
+    # return [524297]
+    image_ids = self._COCO.getImgIds()
+    return image_ids
 
   def _get_widths(self):
     anns = self._COCO.loadImgs(self._image_index)
@@ -123,19 +122,19 @@ class coco(imdb):
     Return the database of ground-truth regions of interest.
     This function loads/saves from/to a cache file to speed up future calls.
     """
-    cache_file = osp.join(self.cache_path, self.name + '_gt_roidb.pkl')
-    if osp.exists(cache_file):
-      with open(cache_file, 'rb') as fid:
-        roidb = pickle.load(fid)
-      print('{} gt roidb loaded from {}'.format(self.name, cache_file))
-      return roidb
+    # cache_file = osp.join(self.cache_path, self.name + '_gt_roidb.pkl')
+    # if osp.exists(cache_file):
+    #   with open(cache_file, 'rb') as fid:
+    #     roidb = pickle.load(fid)
+    #   print('{} gt roidb loaded from {}'.format(self.name, cache_file))
+    #   return roidb
 
     gt_roidb = [self._load_coco_annotation(index)
                 for index in self._image_index]
 
-    with open(cache_file, 'wb') as fid:
-      pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
-    print('wrote gt roidb to {}'.format(cache_file))
+    # with open(cache_file, 'wb') as fid:
+    #   pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
+    # print('wrote gt roidb to {}'.format(cache_file))
     return gt_roidb
 
   def _load_coco_annotation(self, index):
@@ -150,6 +149,7 @@ class coco(imdb):
 
     annIds = self._COCO.getAnnIds(imgIds=index, iscrowd=None)
     objs = self._COCO.loadAnns(annIds)
+    # print("gt from coco", objs)
     # Sanitize bboxes -- some are invalid
     valid_objs = []
     for obj in objs:
@@ -173,7 +173,7 @@ class coco(imdb):
     coco_cat_id_to_class_ind = dict([(self._class_to_coco_cat_id[cls],
                                       self._class_to_ind[cls])
                                      for cls in self._classes[1:]])
-
+    # print("coco to class", coco_cat_id_to_class_ind)
     for ix, obj in enumerate(objs):
       cls = coco_cat_id_to_class_ind[obj['category_id']]
       boxes[ix, :] = obj['clean_bbox']
@@ -255,7 +255,7 @@ class coco(imdb):
       # minus 1 because of __background__
       precision = coco_eval.eval['precision'][ind_lo:(ind_hi + 1), :, cls_ind - 1, 0, 2]
       ap = np.mean(precision[precision > -1])
-      print('{:.1f}'.format(100 * ap))
+      print(cls, '{:.1f}'.format(100 * ap))
 
     print('~~~~ Summary metrics ~~~~')
     coco_eval.summarize()
@@ -263,15 +263,21 @@ class coco(imdb):
   def _do_detection_eval(self, res_file, output_dir):
     ann_type = 'bbox'
     coco_dt = self._COCO.loadRes(res_file)
-    coco_eval = COCOeval(self._COCO, coco_dt)
-    coco_eval.params.useSegm = (ann_type == 'segm')
+    # print("coco dt==>", coco_dt.dataset)
+    print("coco test set", self._get_ann_file(), "res", res_file)
+    coco_eval = COCOeval(self._COCO, coco_dt, "bbox")
+    coco_eval.params.imgIds  = self._load_image_set_index()
+    print(coco_eval.params.imgIds )
+    print("res_file", res_file)
+    # coco_eval.params.useSegm = (ann_type == 'segm')
     coco_eval.evaluate()
     coco_eval.accumulate()
-    self._print_detection_eval_metrics(coco_eval)
-    eval_file = osp.join(output_dir, 'detection_results.pkl')
-    with open(eval_file, 'wb') as fid:
-      pickle.dump(coco_eval, fid, pickle.HIGHEST_PROTOCOL)
-    print('Wrote COCO eval results to: {}'.format(eval_file))
+    coco_eval.summarize()
+    # self._print_detection_eval_metrics(coco_eval)
+    # eval_file = osp.join(output_dir, 'detection_results.pkl')
+    # with open(eval_file, 'wb') as fid:
+    #   pickle.dump(coco_eval, fid, pickle.HIGHEST_PROTOCOL)
+    # print('Wrote COCO eval results to: {}'.format(eval_file))
 
   def _coco_results_one_category(self, boxes, cat_id):
     results = []
@@ -310,20 +316,22 @@ class coco(imdb):
       json.dump(results, fid)
 
   def evaluate_detections(self, all_boxes, output_dir):
+    # print("boxes", all_boxes)
+    # return
     res_file = osp.join(output_dir, ('detections_' +
                                      self._image_set +
                                      self._year +
                                      '_results'))
-    if self.config['use_salt']:
-      res_file += '_{}'.format(str(uuid.uuid4()))
+    # if self.config['use_salt']:
+    #   res_file += '_{}'.format(str(uuid.uuid4()))
     res_file += '.json'
     self._write_coco_results_file(all_boxes, res_file)
     # Only do evaluation on non-test sets
     if self._image_set.find('test') == -1:
       self._do_detection_eval(res_file, output_dir)
     # Optionally cleanup results json file
-    if self.config['cleanup']:
-      os.remove(res_file)
+    # if self.config['cleanup']:
+    #   os.remove(res_file)
 
   def competition_mode(self, on):
     if on:

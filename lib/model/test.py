@@ -17,13 +17,24 @@ import os
 import math
 import os.path
 import skimage.transform as st
+import numpy.random as npr
 
 from utils.timer import Timer
 from utils.cython_nms import nms
 from utils.blob import im_list_to_blob
 
+from utils.visualization import draw_bbox_only
+
 from model.config import cfg, get_output_dir
 from model.bbox_transform import clip_boxes, bbox_transform_inv
+
+from roi_data_layer.minibatch import prep_im_for_blob, _get_image_blob
+from roi_data_layer import minibatch 
+from roi_data_layer.layer import RoIDataLayer 
+
+import PIL.Image as Image
+import time
+
 
 def _get_image_blob(im):
   """Converts an image into a network input.
@@ -35,7 +46,7 @@ def _get_image_blob(im):
       in the image pyramid
   """
   im_orig = im.astype(np.float32, copy=True)
-  im_orig -= cfg.PIXEL_MEANS[:,:,:3]
+  #im_orig -= cfg.PIXEL_MEANS[:,:,:3]
 
   im_shape = im_orig.shape
   im_size_min = np.min(im_shape[0:2])
@@ -54,7 +65,9 @@ def _get_image_blob(im):
     im = temp
     im_scale_factors.append(im_scale)
     im_with_sym = np.zeros((im.shape[0],im.shape[1],4))
-    im_with_sym[:,:,:3] =im
+    im_with_sym[:,:,:4] =im
+    im_with_sym,im_scale = prep_im_for_blob(im, cfg.PIXEL_MEANS, target_size,
+                    cfg.TRAIN.MAX_SIZE)
     processed_ims.append(im_with_sym)
 
   # Create a blob to hold the input images
@@ -88,18 +101,42 @@ def _rescale_boxes(boxes, inds, scales):
 
   return boxes
 
-def im_detect(sess, net, im):
-  blobs, im_scales = _get_blobs(im)
-  assert len(im_scales) == 1, "Only single-image batch implemented"
+def im_detect(sess, net, im,data_layer=None):
+  assert data_layer
+  if data_layer:
+    blobs = data_layer.forward()
+  else:
+    if roidb:
+      random_scale_inds = npr.randint(0, high=len(cfg.TRAIN.SCALES),
+                    size=1)
+      blobs, im_scales = minibatch._get_image_blob(roidb, random_scale_inds)
+    else:
+      blobs, im_scales = _get_blobs(im)
+    
+    assert len(im_scales) == 1, "Only single-image batch implemented"
 
-  im_blob = blobs['data']
-  blobs['im_info'] = np.array([im_blob.shape[1], im_blob.shape[2], im_scales[0]], dtype=np.float32)
+    im_blob = blobs['data']
+    blobs['im_info'] = np.array([im_blob.shape[1], im_blob.shape[2], im_scales[0]], dtype=np.float32)
+
+    # bboxs = draw_bbox_only(im_blob,blobs['gt_boxes'],blobs['im_info'], cfg.PIXEL_MEANS[0,0,:3])
+
+    #replace sym chan with bboxs
+    im_blob[0][:,:,3] = bboxs
+
+  # Image.fromarray(np.uint8(blobs['data'][0][:,:,:3])).show()
+  # Image.fromarray(np.uint8(blobs['data'][0][:,:,3])).show()
+  
+  im_scales = [blobs['im_info'][2]] 
 
   _, scores, bbox_pred, rois = net.test_image(sess, blobs['data'], blobs['im_info'])
-  
+  # print("im_info", blobs['im_info']) 
   boxes = rois[:, 1:5] / im_scales[0]
   scores = np.reshape(scores, [scores.shape[0], -1])
   bbox_pred = np.reshape(bbox_pred, [bbox_pred.shape[0], -1])
+  # print(boxes)
+  # print("scores",scores.shape,scores)
+  # print(bbox_pred)
+  # time.sleep(100)
   if cfg.TEST.BBOX_REG:
     # Apply bounding-box regression deltas
     box_deltas = bbox_pred
@@ -140,7 +177,7 @@ def apply_nms(all_boxes, thresh):
       nms_boxes[cls_ind][im_ind] = dets[keep, :].copy()
   return nms_boxes
 
-def test_net(sess, net, imdb, weights_filename, max_per_image=100, thresh=0.05):
+def test_net(sess, net, imdb, weights_filename, max_per_image=100, thresh=0.5, roidb=None):
   np.random.seed(cfg.RNG_SEED)
   """Test a Fast R-CNN network on an image database."""
   num_images = len(imdb.image_index)
@@ -154,23 +191,26 @@ def test_net(sess, net, imdb, weights_filename, max_per_image=100, thresh=0.05):
   # timers
   _t = {'im_detect' : Timer(), 'misc' : Timer()}
 
+  data_layer = RoIDataLayer(roidb, imdb.num_classes, shuffle=False)
+
   for i in range(num_images):
     im = cv2.imread(imdb.image_path_at(i))
     
     head, fname = os.path.split(imdb.image_path_at(i))
     head, dirname = os.path.split(head)
     symfile = os.path.join('/storage/pramodrt/phasesym/',dirname,fname)
-    sim = cv2.imread(symfile)
-    sim = sim[:,:,1];
+    # sim = cv2.imread(symfile)
+    # sim = sim[:,:,1];
 
     sx, sy, sz = im.shape
     temp = np.zeros([sx, sy, 4])
     temp[:,:,0:3] = im;
-    temp[:,:,3] = sim;
+    # temp[:,:,3] = sim;
     im = temp;
 
     _t['im_detect'].tic()
-    scores, boxes = im_detect(sess, net, im)
+    print("img path", imdb.image_path_at(i))
+    scores, boxes = im_detect(sess, net, im, data_layer=data_layer)
     _t['im_detect'].toc()
 
     _t['misc'].tic()

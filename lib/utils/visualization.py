@@ -91,24 +91,27 @@ def draw_bounding_boxes(image, gt_boxes, im_info):
   return bgr_img
 
 def draw_bbox_only(image, gt_boxes, im_info,means):
-  print(image.shape)
+  #print(image.shape)
   num_boxes = gt_boxes.shape[0]
   gt_boxes_new = gt_boxes.copy()
   gt_boxes_new[:,:4] = np.round(gt_boxes_new[:,:4].copy() / im_info[2])
 
   # resized = tf.image.resize_bilinear(image, tf.to_int32(self._im_info[:2] / self._im_info[2]))
 
-  disp_image = Image.fromarray(np.uint8(image[0][:,:,0:3].copy() + means))
-  # disp_image.show()
+  # if num_boxes < 1:
+  #   disp_image = Image.fromarray(np.uint8(image[0][:,:,0:3].copy() + means))
+  #   disp_image.show()
+    # assert False
 
   sx,sy,sz = image[0].shape
-  disp_image = Image.fromarray(np.uint8(255*np.ones((sx,sy))))
+  disp_image = Image.fromarray(np.uint8(np.zeros((sx,sy))))
 
   # disp_image.resize(size, resample=0)
   
 
   for i in range(num_boxes):
     this_class = int(gt_boxes_new[i, 4])
+    print("class info", i, this_class)
     disp_image = _draw_single_box_only(disp_image, 
                                 gt_boxes_new[i, 0]*im_info[2],
                                 gt_boxes_new[i, 1]*im_info[2],
@@ -116,9 +119,8 @@ def draw_bbox_only(image, gt_boxes, im_info,means):
                                 gt_boxes_new[i, 3]*im_info[2],
                                 'N%02d-C%02d' % (i, this_class),
                                 FONT,
-                                color=this_class)
-
-  assert this_class < 255
+                                color=this_class+1)
+  # assert this_class + 1 < 255
   # sx,sy,sz = image[0].shape
   # bgr_img = np.float32(np.zeros((1,sx,sy,3)))
   # bgr_img[0,:] = np.array(disp_image)

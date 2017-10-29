@@ -21,6 +21,7 @@ import os.path
 
 def get_minibatch(roidb, num_classes):
   """Given a roidb, construct a minibatch sampled from it."""
+  # print("roidb", roidb)
   num_images = len(roidb)
   # Sample random scales to use for each image in this batch
   random_scale_inds = npr.randint(0, high=len(cfg.TRAIN.SCALES),
@@ -50,7 +51,7 @@ def get_minibatch(roidb, num_classes):
   blobs['im_info'] = np.array(
     [im_blob.shape[1], im_blob.shape[2], im_scales[0]],
     dtype=np.float32)
-
+  # print("im im_info", blobs['im_info'], "gt_boxes", blobs['gt_boxes'])
 
   bboxs = draw_bbox_only(im_blob,blobs['gt_boxes'],blobs['im_info'], cfg.PIXEL_MEANS[0,0,:3])
 
