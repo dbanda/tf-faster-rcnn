@@ -249,14 +249,15 @@ class SolverWrapper(object):
 
     # Find previous snapshots if there is any to restore from
     lsf, nfiles, sfiles = self.find_previous()
-
+    lsf = 0 # initialize every time
     # Initialize the variables or restore them from the last snapshot
     if lsf == 0:
       rate, last_snapshot_iter, stepsizes, np_paths, ss_paths = self.initialize(sess)
     else:
-      rate, last_snapshot_iter, stepsizes, np_paths, ss_paths = self.restore(sess, 
-                                                                            str(sfiles[-1]), 
-                                                                            str(nfiles[-1]))
+      pass
+      # rate, last_snapshot_iter, stepsizes, np_paths, ss_paths = self.restore(sess, 
+      #                                                                       str(sfiles[-1]), 
+      #                                                                       str(nfiles[-1]))
     timer = Timer()
     iter = last_snapshot_iter + 1
     last_summary_time = time.time()

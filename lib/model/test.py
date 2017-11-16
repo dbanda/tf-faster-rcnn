@@ -36,51 +36,51 @@ import PIL.Image as Image
 import time
 
 
-def _get_image_blob(im):
-  """Converts an image into a network input.
-  Arguments:
-    im (ndarray): a color image in BGR order
-  Returns:
-    blob (ndarray): a data blob holding an image pyramid
-    im_scale_factors (list): list of image scales (relative to im) used
-      in the image pyramid
-  """
-  im_orig = im.astype(np.float32, copy=True)
-  #im_orig -= cfg.PIXEL_MEANS[:,:,:3]
+# def _get_image_blob(im):
+#   """Converts an image into a network input.
+#   Arguments:
+#     im (ndarray): a color image in BGR order
+#   Returns:
+#     blob (ndarray): a data blob holding an image pyramid
+#     im_scale_factors (list): list of image scales (relative to im) used
+#       in the image pyramid
+#   """
+#   im_orig = im.astype(np.float32, copy=True)
+#   #im_orig -= cfg.PIXEL_MEANS[:,:,:3]
 
-  im_shape = im_orig.shape
-  im_size_min = np.min(im_shape[0:2])
-  im_size_max = np.max(im_shape[0:2])
+#   im_shape = im_orig.shape
+#   im_size_min = np.min(im_shape[0:2])
+#   im_size_max = np.max(im_shape[0:2])
 
-  processed_ims = []
-  im_scale_factors = []
+#   processed_ims = []
+#   im_scale_factors = []
 
-  for target_size in cfg.TEST.SCALES:
-    im_scale = float(target_size) / float(im_size_min)
-    # Prevent the biggest axis from being more than MAX_SIZE
-    if np.round(im_scale * im_size_max) > cfg.TEST.MAX_SIZE:
-      im_scale = float(cfg.TEST.MAX_SIZE) / float(im_size_max)
-    #im = cv2.resize(im_orig, None, None, fx=im_scale, fy=im_scale, interpolation=cv2.INTER_LINEAR)
-    temp = st.resize(im, (int(im_shape[0]*im_scale),int(im_shape[1]*im_scale)), preserve_range=True)
-    im = temp
-    im_scale_factors.append(im_scale)
-    im_with_sym = np.zeros((im.shape[0],im.shape[1],4))
-    im_with_sym[:,:,:4] =im
-    im_with_sym,im_scale = prep_im_for_blob(im, cfg.PIXEL_MEANS, target_size,
-                    cfg.TRAIN.MAX_SIZE)
-    processed_ims.append(im_with_sym)
+#   for target_size in cfg.TEST.SCALES:
+#     im_scale = float(target_size) / float(im_size_min)
+#     # Prevent the biggest axis from being more than MAX_SIZE
+#     if np.round(im_scale * im_size_max) > cfg.TEST.MAX_SIZE:
+#       im_scale = float(cfg.TEST.MAX_SIZE) / float(im_size_max)
+#     #im = cv2.resize(im_orig, None, None, fx=im_scale, fy=im_scale, interpolation=cv2.INTER_LINEAR)
+#     temp = st.resize(im, (int(im_shape[0]*im_scale),int(im_shape[1]*im_scale)), preserve_range=True)
+#     im = temp
+#     im_scale_factors.append(im_scale)
+#     im_with_sym = np.zeros((im.shape[0],im.shape[1],4))
+#     im_with_sym[:,:,:4] =im
+#     im_with_sym,im_scale = prep_im_for_blob(im, cfg.PIXEL_MEANS, target_size,
+#                     cfg.TRAIN.MAX_SIZE)
+#     processed_ims.append(im_with_sym)
 
-  # Create a blob to hold the input images
-  blob = im_list_to_blob(processed_ims)
+#   # Create a blob to hold the input images
+#   blob = im_list_to_blob(processed_ims)
 
-  return blob, np.array(im_scale_factors)
+#   return blob, np.array(im_scale_factors)
 
-def _get_blobs(im):
-  """Convert an image and RoIs within that image into network inputs."""
-  blobs = {}
-  blobs['data'], im_scale_factors = _get_image_blob(im)
+# def _get_blobs(im):
+#   """Convert an image and RoIs within that image into network inputs."""
+#   blobs = {}
+#   blobs['data'], im_scale_factors = _get_image_blob(im)
 
-  return blobs, im_scale_factors
+#   return blobs, im_scale_factors
 
 def _clip_boxes(boxes, im_shape):
   """Clip boxes to image boundaries."""
@@ -125,7 +125,8 @@ def im_detect(sess, net, im,data_layer=None):
 
   # Image.fromarray(np.uint8(blobs['data'][0][:,:,:3])).show()
   # Image.fromarray(np.uint8(blobs['data'][0][:,:,3])).show()
-  
+ 
+  blobs['data'][0][:,:,:3] =  0
   im_scales = [blobs['im_info'][2]] 
 
   _, scores, bbox_pred, rois = net.test_image(sess, blobs['data'], blobs['im_info'])
@@ -141,7 +142,7 @@ def im_detect(sess, net, im,data_layer=None):
     # Apply bounding-box regression deltas
     box_deltas = bbox_pred
     pred_boxes = bbox_transform_inv(boxes, box_deltas)
-    pred_boxes = _clip_boxes(pred_boxes, im.shape)
+    pred_boxes = _clip_boxes(pred_boxes, blobs['data'][0].shape)
   else:
     # Simply repeat the boxes, once for each class
     pred_boxes = np.tile(boxes, (1, scores.shape[1]))
@@ -177,7 +178,7 @@ def apply_nms(all_boxes, thresh):
       nms_boxes[cls_ind][im_ind] = dets[keep, :].copy()
   return nms_boxes
 
-def test_net(sess, net, imdb, weights_filename, max_per_image=100, thresh=0.5, roidb=None):
+def test_net(sess, net, imdb, weights_filename, max_per_image=100, thresh=0.05, roidb=None):
   np.random.seed(cfg.RNG_SEED)
   """Test a Fast R-CNN network on an image database."""
   num_images = len(imdb.image_index)
@@ -202,15 +203,15 @@ def test_net(sess, net, imdb, weights_filename, max_per_image=100, thresh=0.5, r
     # sim = cv2.imread(symfile)
     # sim = sim[:,:,1];
 
-    sx, sy, sz = im.shape
-    temp = np.zeros([sx, sy, 4])
-    temp[:,:,0:3] = im;
+    # sx, sy, sz = im.shape
+    # temp = np.zeros([sx, sy, 4])
+    # temp[:,:,0:3] = im;
     # temp[:,:,3] = sim;
-    im = temp;
+    # im = temp;
 
     _t['im_detect'].tic()
-    print("img path", imdb.image_path_at(i))
-    scores, boxes = im_detect(sess, net, im, data_layer=data_layer)
+    # print("img path", imdb.image_path_at(i))
+    scores, boxes = im_detect(sess, net, None, data_layer=data_layer)
     _t['im_detect'].toc()
 
     _t['misc'].tic()

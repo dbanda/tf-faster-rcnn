@@ -52,16 +52,21 @@ def get_minibatch(roidb, num_classes):
     [im_blob.shape[1], im_blob.shape[2], im_scales[0]],
     dtype=np.float32)
   # print("im im_info", blobs['im_info'], "gt_boxes", blobs['gt_boxes'])
-
+  print(im_blob[0].shape)
   bboxs = draw_bbox_only(im_blob,blobs['gt_boxes'],blobs['im_info'], cfg.PIXEL_MEANS[0,0,:3])
 
   #replace sym chan with bboxs
+  print(im_blob[0].shape)
+  print(bboxs.shape)
+
+  # im_blob[0][:,:,:3] = 0 
   im_blob[0][:,:,3] = bboxs
 
-  #imgbefore = Image.fromarray(np.uint8( (im_blob[0].copy()+cfg.PIXEL_MEANS)[:,:,0:3] ))
+  imgbefore = Image.fromarray(np.uint8( (im_blob[0].copy()+cfg.PIXEL_MEANS)[:,:,0:3] ))
   
   # imgbefore.show()
   # Image.fromarray(bboxs).show()
+  # assert False
   
 
   return blobs
@@ -88,7 +93,7 @@ def _get_image_blob(roidb, scale_inds):
     sx, sy, sz = im.shape
     temp = np.zeros([sx, sy, 4])
     temp[:,:,0:3] = im;
-    temp[:,:,3] = sim;
+    # temp[:,:,3] = sim;
     im = temp;
     target_size = cfg.TRAIN.SCALES[scale_inds[i]]
     im, im_scale = prep_im_for_blob(im, cfg.PIXEL_MEANS, target_size,

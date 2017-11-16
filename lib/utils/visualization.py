@@ -12,7 +12,7 @@ import PIL.Image as Image
 import PIL.ImageColor as ImageColor
 import PIL.ImageDraw as ImageDraw
 import PIL.ImageFont as ImageFont
-
+from matplotlib import cm
 STANDARD_COLORS = [
     'AliceBlue', 'Chartreuse', 'Aqua', 'Aquamarine', 'Azure', 'Beige', 'Bisque',
     'BlanchedAlmond', 'BlueViolet', 'BurlyWood', 'CadetBlue', 'AntiqueWhite',
@@ -104,10 +104,8 @@ def draw_bbox_only(image, gt_boxes, im_info,means):
     # assert False
 
   sx,sy,sz = image[0].shape
-  disp_image = Image.fromarray(np.uint8(np.zeros((sx,sy))))
-
-  # disp_image.resize(size, resample=0)
-  
+  # disp_image = Image.fromarray(np.uint8(np.zeros((sx,sy,4))), mode='RGBA')
+  disp_image = Image.new('RGB', (sy,sx))
 
   for i in range(num_boxes):
     this_class = int(gt_boxes_new[i, 4])
@@ -120,18 +118,26 @@ def draw_bbox_only(image, gt_boxes, im_info,means):
                                 'N%02d-C%02d' % (i, this_class),
                                 FONT,
                                 color=this_class+1)
-  # assert this_class + 1 < 255
+  assert this_class + 1 < 92, this_class
   # sx,sy,sz = image[0].shape
   # bgr_img = np.float32(np.zeros((1,sx,sy,3)))
   # bgr_img[0,:] = np.array(disp_image)
   # disp_image.show()
-  return np.uint8(disp_image)
+  # disp_image.convert('L').show()
+  # assert False
+
+  disp_image =  disp_image.convert('L')
+  out = np.array(disp_image)
+  # Image.fromarray(out).show()
+  return out
 
 def _draw_single_box_only(image, xmin, ymin, xmax, ymax, display_str, font, color='black', thickness=4):
-  draw = ImageDraw.Draw(image)
+  draw = ImageDraw.Draw(image, 'RGBA')
   (left, right, top, bottom) = (xmin, xmax, ymin, ymax)
-  draw.line([(left, top), (left, bottom), (right, bottom),
-             (right, top), (left, top)], width=thickness, fill=color)
-
+  scale = 255/92
+  rgba_val = [int(x) for x in np.dot(cm.ocean(int(scale*color)),255)]
+  rgba_val[-1] = 50
+  print(rgba_val, "class", color)
+  draw.rectangle([(left, top),(right, bottom)], fill=tuple(rgba_val))
 
   return image
