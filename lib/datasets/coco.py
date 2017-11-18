@@ -92,7 +92,7 @@ class coco(imdb):
     #assert len(imgIds) < 1500, len(imgIds)
     # return [524297]
     #image_ids = self._COCO.getImgIds()
-    return imgIds[:5000]
+    return imgIds[:2]
 
   def _get_widths(self):
     anns = self._COCO.loadImgs(self._image_index)

@@ -32,8 +32,8 @@ case ${DATASET} in
     ;;
   coco)
     TRAIN_IMDB="coco_2014_train"
-    TEST_IMDB="coco_2014_val"
-    ITERS=20000
+    TEST_IMDB="coco_2014_train"
+    ITERS=100
     ANCHORS="[4,8,16,32]"
     RATIOS="[0.5,1,2]"
     ;;

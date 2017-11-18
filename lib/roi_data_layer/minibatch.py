@@ -59,10 +59,16 @@ def get_minibatch(roidb, num_classes):
   print(im_blob[0].shape)
   print(bboxs.shape)
 
-  # im_blob[0][:,:,:3] = 0 
-  im_blob[0][:,:,3] = bboxs
+  imgray = Image.fromarray(np.uint8( (im_blob[0].copy()+cfg.PIXEL_MEANS)[:,:,0:3] )).convert("L")
+  # imgray.show()
+  # assert False
+ 
 
-  imgbefore = Image.fromarray(np.uint8( (im_blob[0].copy()+cfg.PIXEL_MEANS)[:,:,0:3] ))
+  im_blob[0][:,:,:3] = 0 
+  im_blob[0][:,:,3] = bboxs
+  blobs['data'] = im_blob
+
+  # imgbefore = Image.fromarray(np.uint8( (im_blob[0].copy()+cfg.PIXEL_MEANS)[:,:,0:3] ))
   
   # imgbefore.show()
   # Image.fromarray(bboxs).show()

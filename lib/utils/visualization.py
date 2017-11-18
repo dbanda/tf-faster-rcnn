@@ -105,7 +105,7 @@ def draw_bbox_only(image, gt_boxes, im_info,means):
 
   sx,sy,sz = image[0].shape
   # disp_image = Image.fromarray(np.uint8(np.zeros((sx,sy,4))), mode='RGBA')
-  disp_image = Image.new('RGB', (sy,sx))
+  disp_image = Image.new('L', (sy,sx))
 
   for i in range(num_boxes):
     this_class = int(gt_boxes_new[i, 4])
@@ -132,12 +132,13 @@ def draw_bbox_only(image, gt_boxes, im_info,means):
   return out
 
 def _draw_single_box_only(image, xmin, ymin, xmax, ymax, display_str, font, color='black', thickness=4):
-  draw = ImageDraw.Draw(image, 'RGBA')
+  #draw = ImageDraw.Draw(image, 'RGBA')
+  draw = ImageDraw.Draw(image)
   (left, right, top, bottom) = (xmin, xmax, ymin, ymax)
   scale = 255/92
   rgba_val = [int(x) for x in np.dot(cm.ocean(int(scale*color)),255)]
   rgba_val[-1] = 50
-  print(rgba_val, "class", color)
-  draw.rectangle([(left, top),(right, bottom)], fill=tuple(rgba_val))
+  # print(rgba_val, "class", color)
+  draw.rectangle([(left, top),(right, bottom)], fill=int(scale*color))
 
   return image

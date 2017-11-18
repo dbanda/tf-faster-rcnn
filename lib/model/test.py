@@ -15,72 +15,55 @@ except ImportError:
   import pickle
 import os
 import math
-import os.path
-import skimage.transform as st
-import numpy.random as npr
 
 from utils.timer import Timer
-from utils.cython_nms import nms
 from utils.blob import im_list_to_blob
-
-from utils.visualization import draw_bbox_only
 
 from model.config import cfg, get_output_dir
 from model.bbox_transform import clip_boxes, bbox_transform_inv
-
-from roi_data_layer.minibatch import prep_im_for_blob, _get_image_blob
-from roi_data_layer import minibatch 
+from model.nms_wrapper import nms
 from roi_data_layer.layer import RoIDataLayer 
 
-import PIL.Image as Image
-import time
+def _get_image_blob(im):
+  """Converts an image into a network input.
+  Arguments:
+    im (ndarray): a color image in BGR order
+  Returns:
+    blob (ndarray): a data blob holding an image pyramid
+    im_scale_factors (list): list of image scales (relative to im) used
+      in the image pyramid
+  """
+  im_orig = im.astype(np.float32, copy=True)
+  im_orig -= cfg.PIXEL_MEANS
 
+  im_shape = im_orig.shape
+  im_size_min = np.min(im_shape[0:2])
+  im_size_max = np.max(im_shape[0:2])
 
-# def _get_image_blob(im):
-#   """Converts an image into a network input.
-#   Arguments:
-#     im (ndarray): a color image in BGR order
-#   Returns:
-#     blob (ndarray): a data blob holding an image pyramid
-#     im_scale_factors (list): list of image scales (relative to im) used
-#       in the image pyramid
-#   """
-#   im_orig = im.astype(np.float32, copy=True)
-#   #im_orig -= cfg.PIXEL_MEANS[:,:,:3]
+  processed_ims = []
+  im_scale_factors = []
 
-#   im_shape = im_orig.shape
-#   im_size_min = np.min(im_shape[0:2])
-#   im_size_max = np.max(im_shape[0:2])
+  for target_size in cfg.TEST.SCALES:
+    im_scale = float(target_size) / float(im_size_min)
+    # Prevent the biggest axis from being more than MAX_SIZE
+    if np.round(im_scale * im_size_max) > cfg.TEST.MAX_SIZE:
+      im_scale = float(cfg.TEST.MAX_SIZE) / float(im_size_max)
+    im = cv2.resize(im_orig, None, None, fx=im_scale, fy=im_scale,
+            interpolation=cv2.INTER_LINEAR)
+    im_scale_factors.append(im_scale)
+    processed_ims.append(im)
 
-#   processed_ims = []
-#   im_scale_factors = []
+  # Create a blob to hold the input images
+  blob = im_list_to_blob(processed_ims)
 
-#   for target_size in cfg.TEST.SCALES:
-#     im_scale = float(target_size) / float(im_size_min)
-#     # Prevent the biggest axis from being more than MAX_SIZE
-#     if np.round(im_scale * im_size_max) > cfg.TEST.MAX_SIZE:
-#       im_scale = float(cfg.TEST.MAX_SIZE) / float(im_size_max)
-#     #im = cv2.resize(im_orig, None, None, fx=im_scale, fy=im_scale, interpolation=cv2.INTER_LINEAR)
-#     temp = st.resize(im, (int(im_shape[0]*im_scale),int(im_shape[1]*im_scale)), preserve_range=True)
-#     im = temp
-#     im_scale_factors.append(im_scale)
-#     im_with_sym = np.zeros((im.shape[0],im.shape[1],4))
-#     im_with_sym[:,:,:4] =im
-#     im_with_sym,im_scale = prep_im_for_blob(im, cfg.PIXEL_MEANS, target_size,
-#                     cfg.TRAIN.MAX_SIZE)
-#     processed_ims.append(im_with_sym)
+  return blob, np.array(im_scale_factors)
 
-#   # Create a blob to hold the input images
-#   blob = im_list_to_blob(processed_ims)
+def _get_blobs(im):
+  """Convert an image and RoIs within that image into network inputs."""
+  blobs = {}
+  blobs['data'], im_scale_factors = _get_image_blob(im)
 
-#   return blob, np.array(im_scale_factors)
-
-# def _get_blobs(im):
-#   """Convert an image and RoIs within that image into network inputs."""
-#   blobs = {}
-#   blobs['data'], im_scale_factors = _get_image_blob(im)
-
-#   return blobs, im_scale_factors
+  return blobs, im_scale_factors
 
 def _clip_boxes(boxes, im_shape):
   """Clip boxes to image boundaries."""
@@ -102,47 +85,33 @@ def _rescale_boxes(boxes, inds, scales):
   return boxes
 
 def im_detect(sess, net, im,data_layer=None):
+  # blobs, im_scales = _get_blobs(im)
+  #im_shape = im.shape
   assert data_layer
   if data_layer:
     blobs = data_layer.forward()
-  else:
-    if roidb:
-      random_scale_inds = npr.randint(0, high=len(cfg.TRAIN.SCALES),
-                    size=1)
-      blobs, im_scales = minibatch._get_image_blob(roidb, random_scale_inds)
-    else:
-      blobs, im_scales = _get_blobs(im)
-    
-    assert len(im_scales) == 1, "Only single-image batch implemented"
+    # from PIL import Image
+    # Image.fromarray(im).show()
+    #Image.fromarray(np.uint8(blobs['data'][0][:,:,:] + cfg.PIXEL_MEANS)).show()
+    # Image.fromarray(np.uint8(blobs['data'][0][:,:,3])).show()
 
-    im_blob = blobs['data']
-    blobs['im_info'] = np.array([im_blob.shape[1], im_blob.shape[2], im_scales[0]], dtype=np.float32)
-
-    # bboxs = draw_bbox_only(im_blob,blobs['gt_boxes'],blobs['im_info'], cfg.PIXEL_MEANS[0,0,:3])
-
-    #replace sym chan with bboxs
-    im_blob[0][:,:,3] = bboxs
-
-  # Image.fromarray(np.uint8(blobs['data'][0][:,:,:3])).show()
-  # Image.fromarray(np.uint8(blobs['data'][0][:,:,3])).show()
- 
-  blobs['data'][0][:,:,:3] =  0
-  im_scales = [blobs['im_info'][2]] 
+    im_scales = [blobs['im_info'][2]]
+    im_shape = int(blobs['data'][0].shape[0]/im_scales[0]), int(blobs['data'][0].shape[1]/im_scales[0]),blobs['data'][0].shape[2]
+    # assert im_shape == im.shape, (im_shape, im.shape)
+  im_blob = blobs['data']
+  blobs['im_info'] = np.array([im_blob.shape[1], im_blob.shape[2], im_scales[0]], dtype=np.float32)
 
   _, scores, bbox_pred, rois = net.test_image(sess, blobs['data'], blobs['im_info'])
-  # print("im_info", blobs['im_info']) 
+  
   boxes = rois[:, 1:5] / im_scales[0]
+  print("boxes", boxes, im_shape)
   scores = np.reshape(scores, [scores.shape[0], -1])
   bbox_pred = np.reshape(bbox_pred, [bbox_pred.shape[0], -1])
-  # print(boxes)
-  # print("scores",scores.shape,scores)
-  # print(bbox_pred)
-  # time.sleep(100)
   if cfg.TEST.BBOX_REG:
     # Apply bounding-box regression deltas
     box_deltas = bbox_pred
     pred_boxes = bbox_transform_inv(boxes, box_deltas)
-    pred_boxes = _clip_boxes(pred_boxes, blobs['data'][0].shape)
+    pred_boxes = _clip_boxes(pred_boxes, im_shape)
   else:
     # Simply repeat the boxes, once for each class
     pred_boxes = np.tile(boxes, (1, scores.shape[1]))
@@ -178,7 +147,7 @@ def apply_nms(all_boxes, thresh):
       nms_boxes[cls_ind][im_ind] = dets[keep, :].copy()
   return nms_boxes
 
-def test_net(sess, net, imdb, weights_filename, max_per_image=100, thresh=0.05, roidb=None):
+def test_net(sess, net, imdb, weights_filename, max_per_image=100, thresh=0.05,roidb=None):
   np.random.seed(cfg.RNG_SEED)
   """Test a Fast R-CNN network on an image database."""
   num_images = len(imdb.image_index)
@@ -195,22 +164,9 @@ def test_net(sess, net, imdb, weights_filename, max_per_image=100, thresh=0.05, 
   data_layer = RoIDataLayer(roidb, imdb.num_classes, shuffle=False)
 
   for i in range(num_images):
-    im = cv2.imread(imdb.image_path_at(i))
-    
-    head, fname = os.path.split(imdb.image_path_at(i))
-    head, dirname = os.path.split(head)
-    symfile = os.path.join('/storage/pramodrt/phasesym/',dirname,fname)
-    # sim = cv2.imread(symfile)
-    # sim = sim[:,:,1];
-
-    # sx, sy, sz = im.shape
-    # temp = np.zeros([sx, sy, 4])
-    # temp[:,:,0:3] = im;
-    # temp[:,:,3] = sim;
-    # im = temp;
+    # im = cv2.imread(imdb.image_path_at(i))
 
     _t['im_detect'].tic()
-    # print("img path", imdb.image_path_at(i))
     scores, boxes = im_detect(sess, net, None, data_layer=data_layer)
     _t['im_detect'].toc()
 
