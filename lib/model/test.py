@@ -92,7 +92,7 @@ def im_detect(sess, net, im,data_layer=None):
     blobs = data_layer.forward()
     # from PIL import Image
     # Image.fromarray(im).show()
-    #Image.fromarray(np.uint8(blobs['data'][0][:,:,:] + cfg.PIXEL_MEANS)).show()
+    # Image.fromarray(np.uint8(blobs['data'][0][:,:,:] + cfg.PIXEL_MEANS)).show()
     # Image.fromarray(np.uint8(blobs['data'][0][:,:,3])).show()
 
     im_scales = [blobs['im_info'][2]]
@@ -104,7 +104,6 @@ def im_detect(sess, net, im,data_layer=None):
   _, scores, bbox_pred, rois = net.test_image(sess, blobs['data'], blobs['im_info'])
   
   boxes = rois[:, 1:5] / im_scales[0]
-  print("boxes", boxes, im_shape)
   scores = np.reshape(scores, [scores.shape[0], -1])
   bbox_pred = np.reshape(bbox_pred, [bbox_pred.shape[0], -1])
   if cfg.TEST.BBOX_REG:
@@ -162,10 +161,7 @@ def test_net(sess, net, imdb, weights_filename, max_per_image=100, thresh=0.05,r
   _t = {'im_detect' : Timer(), 'misc' : Timer()}
 
   data_layer = RoIDataLayer(roidb, imdb.num_classes, shuffle=False)
-
   for i in range(num_images):
-    # im = cv2.imread(imdb.image_path_at(i))
-
     _t['im_detect'].tic()
     scores, boxes = im_detect(sess, net, None, data_layer=data_layer)
     _t['im_detect'].toc()

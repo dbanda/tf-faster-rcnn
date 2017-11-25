@@ -80,19 +80,14 @@ class coco(imdb):
     nms = set([cat['supercategory'] for cat in cats])
     print('COCO supercategories: \n{}'.format(' '.join(nms)))
 
-    catIds = self._COCO.getCatIds(catNms=['bicycle' ,'car' ,'motorcycle' ]);
-    assert len(catIds) > 0
-    imgIds= []
-    for c in catIds:
-      imgIds.extend(self._COCO.getImgIds(imgIds=self._COCO.getImgIds(), catIds=[c] ));
-    #imgIds=self._COCO.getImgIds()
-
-    print(catIds, len(imgIds))
-    assert len(imgIds) > 0
-    #assert len(imgIds) < 1500, len(imgIds)
-    # return [524297]
-    #image_ids = self._COCO.getImgIds()
-    return imgIds[:2]
+    #catIds = self._COCO.getCatIds(catNms=['bicycle' ,'car' ,'motorcycle' ]);
+    #assert len(catIds) > 0
+    #imgIds= []
+    #for c in catIds:
+    #  imgIds.extend(self._COCO.getImgIds(imgIds=self._COCO.getImgIds(), catIds=[c] ));
+    #return imgIds
+    image_ids = self._COCO.getImgIds()
+    return image_ids
 
   def _get_widths(self):
     anns = self._COCO.loadImgs(self._image_index)
@@ -151,7 +146,6 @@ class coco(imdb):
 
     annIds = self._COCO.getAnnIds(imgIds=index, iscrowd=None)
     objs = self._COCO.loadAnns(annIds)
-    # print("gt from coco", objs)
     # Sanitize bboxes -- some are invalid
     valid_objs = []
     for obj in objs:
@@ -175,7 +169,7 @@ class coco(imdb):
     coco_cat_id_to_class_ind = dict([(self._class_to_coco_cat_id[cls],
                                       self._class_to_ind[cls])
                                      for cls in self._classes[1:]])
-    # print("coco to class", coco_cat_id_to_class_ind)
+
     for ix, obj in enumerate(objs):
       cls = coco_cat_id_to_class_ind[obj['category_id']]
       boxes[ix, :] = obj['clean_bbox']
@@ -265,13 +259,9 @@ class coco(imdb):
   def _do_detection_eval(self, res_file, output_dir):
     ann_type = 'bbox'
     coco_dt = self._COCO.loadRes(res_file)
-    # print("coco dt==>", coco_dt.dataset)
-    print("coco test set", self._get_ann_file(), "res", res_file)
     coco_eval = COCOeval(self._COCO, coco_dt, "bbox")
     coco_eval.params.imgIds  = self._load_image_set_index()
-    print(coco_eval.params.imgIds )
     print("res_file", res_file)
-    # coco_eval.params.useSegm = (ann_type == 'segm')
     coco_eval.evaluate()
     coco_eval.accumulate()
     coco_eval.summarize()
@@ -318,8 +308,6 @@ class coco(imdb):
       json.dump(results, fid)
 
   def evaluate_detections(self, all_boxes, output_dir):
-    # print("boxes", all_boxes)
-    # return
     res_file = osp.join(output_dir, ('detections_' +
                                      self._image_set +
                                      self._year +
