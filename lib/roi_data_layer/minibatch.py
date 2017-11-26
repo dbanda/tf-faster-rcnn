@@ -21,7 +21,6 @@ import os.path
 
 def get_minibatch(roidb, num_classes):
   """Given a roidb, construct a minibatch sampled from it."""
-  # print("roidb", roidb)
   num_images = len(roidb)
   # Sample random scales to use for each image in this batch
   random_scale_inds = npr.randint(0, high=len(cfg.TRAIN.SCALES),
@@ -51,29 +50,18 @@ def get_minibatch(roidb, num_classes):
   blobs['im_info'] = np.array(
     [im_blob.shape[1], im_blob.shape[2], im_scales[0]],
     dtype=np.float32)
-  # print("im im_info", blobs['im_info'], "gt_boxes", blobs['gt_boxes'])
-  print(im_blob[0].shape)
   bboxs = draw_bbox_only(im_blob,blobs['gt_boxes'],blobs['im_info'], cfg.PIXEL_MEANS[0,0,:3])
 
-  #replace sym chan with bboxs
-  print(im_blob[0].shape)
-  print(bboxs.shape)
-
   imgray = Image.fromarray(np.uint8( (im_blob[0].copy()+cfg.PIXEL_MEANS)[:,:,0:3] )).convert("L")
-  # imgray.show()
-  # assert False
- 
 
+  # manipulate data to insert ground truth, grayscale img
   im_blob[0][:,:,:3] = 0 
   im_blob[0][:,:,3] = bboxs
   blobs['data'] = im_blob
 
   # imgbefore = Image.fromarray(np.uint8( (im_blob[0].copy()+cfg.PIXEL_MEANS)[:,:,0:3] ))
-  
   # imgbefore.show()
   # Image.fromarray(bboxs).show()
-  # assert False
-  
 
   return blobs
 
@@ -81,25 +69,22 @@ def _get_image_blob(roidb, scale_inds):
   """Builds an input blob from the images in the roidb at the specified
   scales.
   """
-   
   num_images = len(roidb)
   processed_ims = []
   im_scales = []
   for i in range(num_images):
     im = cv2.imread(roidb[i]['image'])
-    
     head, fname = os.path.split(roidb[i]['image'])
     head, dirname = os.path.split(head)
-    #symfile = os.path.join('/storage/pramodrt/phasesym/',dirname,fname)
     symfile = os.path.join(head,dirname,'../../phasesym/phasesym/',dirname,fname)
-    sim = cv2.imread(symfile,0)
+    sym = cv2.imread(symfile,0)
     if roidb[i]['flipped']:
       im = im[:, ::-1, :]
-    
     sx, sy, sz = im.shape
     temp = np.zeros([sx, sy, 4])
     temp[:,:,0:3] = im;
-    # temp[:,:,3] = sim;
+    #put symmetry in extra chan
+    #temp[:,:,3] = sym;
     im = temp;
     target_size = cfg.TRAIN.SCALES[scale_inds[i]]
     im, im_scale = prep_im_for_blob(im, cfg.PIXEL_MEANS, target_size,
